@@ -38,20 +38,12 @@ impl<T> LeakDetector<T> {
     }
 }
 
-macro d_println($($t:tt)*) {
-    #[cfg(debug_assertions)]
-    {
-        println!($($t)*);
-    }
-}
-
 unsafe impl<T: Allocator> Allocator for LeakDetector<T> {
     #[track_caller]
     fn allocate(
         &self,
         layout: std::alloc::Layout,
     ) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
-        d_println!("Allocate at {}", core::panic::Location::caller());
         self.inner.allocate(layout).inspect(|_| {
             self.used
                 .fetch_add(layout.size(), std::sync::atomic::Ordering::AcqRel);
@@ -60,7 +52,6 @@ unsafe impl<T: Allocator> Allocator for LeakDetector<T> {
 
     #[track_caller]
     unsafe fn deallocate(&self, ptr: std::ptr::NonNull<u8>, layout: std::alloc::Layout) {
-        d_println!("Deallocate at {}", core::panic::Location::caller());
         unsafe {
             self.inner.deallocate(ptr, layout);
         }
@@ -73,7 +64,6 @@ unsafe impl<T: Allocator> Allocator for LeakDetector<T> {
         &self,
         layout: std::alloc::Layout,
     ) -> Result<std::ptr::NonNull<[u8]>, std::alloc::AllocError> {
-        d_println!("Allocate at {}", core::panic::Location::caller());
         self.inner.allocate_zeroed(layout).inspect(|_| {
             self.used
                 .fetch_add(layout.size(), std::sync::atomic::Ordering::AcqRel);
@@ -137,7 +127,6 @@ unsafe impl<T: Allocator> Allocator for LeakDetector<T> {
 unsafe impl<T: GlobalAlloc> GlobalAlloc for LeakDetector<T> {
     #[track_caller]
     unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
-        d_println!("Allocate at {}", core::panic::Location::caller());
         let result = unsafe { self.inner.alloc(layout) };
         self.used
             .fetch_add(layout.size(), std::sync::atomic::Ordering::AcqRel);
@@ -146,7 +135,6 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for LeakDetector<T> {
 
     #[track_caller]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: std::alloc::Layout) {
-        d_println!("Deallocate at {}", core::panic::Location::caller());
         unsafe {
             self.inner.dealloc(ptr, layout);
         }
@@ -156,7 +144,6 @@ unsafe impl<T: GlobalAlloc> GlobalAlloc for LeakDetector<T> {
 
     #[track_caller]
     unsafe fn alloc_zeroed(&self, layout: std::alloc::Layout) -> *mut u8 {
-        d_println!("Allocate at {}", core::panic::Location::caller());
         let result = unsafe { self.inner.alloc_zeroed(layout) };
         self.used
             .fetch_add(layout.size(), std::sync::atomic::Ordering::AcqRel);
@@ -187,7 +174,7 @@ mod tests {
 
     use super::*;
 
-    static _GLOBAL: LeakDetector<System> = LeakDetector::new(System);
+    static _GLOBAL: LeakDetector<System> = LeakDetector::system();
 
     #[test]
     fn test() {
