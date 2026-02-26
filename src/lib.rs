@@ -3,11 +3,16 @@
 #![feature(const_default)]
 #![feature(decl_macro)]
 #![feature(const_trait_impl)]
+#![feature(unboxed_closures)]
+#![feature(tuple_trait)]
+#![feature(fn_traits)]
 
 use std::{
     alloc::{Allocator, GlobalAlloc},
     sync::atomic::AtomicUsize,
 };
+
+mod scope;
 
 pub struct LeakDetector<T> {
     inner: T,
